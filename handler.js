@@ -1,40 +1,46 @@
 'use strict';
 
-module.exports.hello = async (event, context, callback) => {
-  const body = JSON.stringify({
-      message: 'Go Serverless v1.0! Your function executed successfully!',
-      input: event,
-      content: 'Hello World!'
-    },
-    null,
-    2
-  );
+const uuid = require('uuid');
+const AWS = require('aws-sdk');
 
-  const response = {
-    statusCode: 200,
-    body: body
-  }
+AWS.config.setPromisesDependency(require('bluebird'));
 
-  return response;
-
-  // Use this code if you don't use the http event with the LAMBDA-PROXY integration
-  // return { message: 'Go Serverless v1.0! Your function executed successfully!', event };
-};
+const documentClient = new AWS.DynamoDB.DocumentClient();
 
 module.exports.save = async (event, context, callback) => {
-  const body = JSON.stringify(
-    {
-      message: 'Go Serverless v1.0! Your function executed successfully!',
-      input: event,
-    },
-    null,
-    2
-  );
+  const requestBody = JSON.parse(event.body);
 
-  const response = {
-    statusCode: 200,
-    body: body
+  const name = requestBody.name;
+
+  const timestamp = new Date().getTime();
+
+  const record = {
+    id: uuid.v1(),
+    name: name,
+    createdAt: timestamp,
+    updatedAt: timestamp
   }
 
-  return response;
+  const params = {
+    TableName: 'MyDynamoDbTable',
+    Item: record
+  };
+
+  await ((params) => {
+    return new Promise((resolve, reject) => {
+      documentClient.put(params, (err, data) => {
+        if (err) reject(err)
+        else resolve(data);
+      });
+    });
+  })(params);
+
+  callback(null, {
+    statusCode: 200,
+    body: JSON.stringify({
+      message: 'successfully saved',
+      id: record.id
+    })
+  });
+
 }
